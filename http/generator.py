@@ -24,7 +24,7 @@ def rand_string(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
 
 def main():
-
+  print "Generate HTTP Test Files"
   # Create output directory
   if not os.path.exists(DIR):
     os.makedirs(DIR)
@@ -41,4 +41,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-

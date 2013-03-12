@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from util.helper import *
+from helper import *
 import glob
 import sys
 from collections import defaultdict
@@ -27,6 +27,7 @@ def plot_throughput(ax, name, label, color, marker):
 
     with open("%s/%s/ss-%s" % (args.dir, s, name)) as hGS:
       data = map(lambda x: x.split(','), hGS.readlines())
+      data = filter(lambda x: len(x) > 1, data)
 
     if len(data) < 2:
       print "%s" % (interval[0], )
@@ -47,8 +48,8 @@ def main():
   #plot_throughput('hBR', 'Attacker UDP', color='blue', marker='o')
 
   ax.legend(loc=2, bbox_to_anchor=(1.05, 1))
-  ax.set_ylabel("Normalized Throughput")
-  ax.set_xlabel("Attack Interval")
+  ax.set_ylabel("Throughput (normalized)")
+  ax.set_xlabel("DoS Inter-burst Period (second)")
   plt.savefig("%s" % (args.out, ))
 
 if __name__ == '__main__':

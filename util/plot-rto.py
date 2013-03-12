@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from util.helper import *
+from helper import *
 import glob
 import sys
 import json
@@ -25,6 +25,7 @@ BOTTLENECK_RATE = float(opts['bw_net']) * 1000 * 1000 / 8.
 def plot_rto(f, ax, color, name):
   global lines
   data = map(lambda x: x.split(','), f.readlines())
+  data = filter(lambda x: len(x) > 1, data)
   xdata = map(lambda x: x[0], data)
   ydata = map(lambda x: x[4] if len(x) >= 5 else 0, data)
   lines += ax.plot(xdata, ydata, label="RTO", color="red")
@@ -32,6 +33,7 @@ def plot_rto(f, ax, color, name):
 def plot_rate(f, ax, color, label):
   global lines
   data = map(lambda x: x.split(','), f.readlines())
+  data = filter(lambda x: len(x) > 1, data)
   xdata = map(lambda x: x[0], data)
   ydata = map(lambda x: x[1], data)
   ydata = map(lambda x: (float(x[0]) - float(x[2])) / (float(x[1]) - float(x[3])) / BOTTLENECK_RATE,

@@ -116,6 +116,12 @@ parser.add_argument('--http',
                     default=False,
                     help="Run HTTP test")
 
+parser.add_argument('--debug',
+                    dest="debug",
+                    action='store_true',
+                    default=False,
+                    help="Print debug messages")
+
 # Expt parameters
 args = parser.parse_args()
 
@@ -127,8 +133,6 @@ if not os.path.exists(args.dir):
   opt = open("%s/options" % (args.dir, ), 'w')
   print >> opt, json.dumps(vars(args), sort_keys=True, indent=4, separators=(',', ': '))
   opt.close()
-
-lg.setLogLevel('info')
 
 # Topology to be instantiated in Mininet
 class NetworkTopo(Topo):
@@ -169,24 +173,26 @@ def stop_tcpprobe():
   subprocess.Popen("killall -9 cat", shell=True, stderr=PIPE).wait()
   subprocess.Popen("rmmod tcp_probe", shell=True, stderr=PIPE).wait()
 
-def get_txbytes(iface, received=False):
+def get_all_txbytes():
   f = open('/proc/net/dev', 'r')
-  lines = f.readlines()
-  for line in lines:
-      if iface in line:
-          break
-  f.close()
-  if not line:
-      raise Exception("could not find iface %s in /proc/net/dev:%s" %
-                      (iface, lines))
+  lines = f.readlines()[2:]
   # Extract TX bytes from:
   #Inter-|   Receive                                                |  Transmit
   # face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
   # lo: 6175728   53444    0    0    0     0          0         0  6175728   53444    0    0    0     0       0          0
+  data = map(lambda x: x.split(':'), lines)
+  data = map(lambda x: (x[0], (float(x[1].split()[0]), float(x[1].split()[8]))), data)
+  return dict(data)
+
+def get_txbytes(iface, received=False):
+  data = get_all_txbytes()
+  if iface not in data:
+      raise Exception("could not find iface %s in /proc/net/dev:%s" %
+                      (iface, data))
   if received:
-    return float(line.split()[1])
+    return data[iface][0]
   else:
-    return float(line.split()[9])
+    return data[iface][1]
 
 def stop_all_iperf():
   os.system('killall ' + CUSTOM_IPERF_PATH)
@@ -203,7 +209,7 @@ def start_receiver(host, isTCP):
 
 def start_sender(send, recv, bw=0, seconds=3600):
   send.popen('%s -c %s -p %s -t %f -i 1 -yc -Z %s > /dev/null' %
-  (CUSTOM_IPERF_PATH, recv.IP(), 5001, seconds, args.cong), shell=True)
+    (CUSTOM_IPERF_PATH, recv.IP(), 5001, seconds, args.cong), shell=True)
 
 class MonitorLinkRate(threading.Thread):
   def __init__(self, hosts):
@@ -230,15 +236,14 @@ class MonitorLinkRate(threading.Thread):
   ESTAB      0      984640             10.0.0.4:51398             10.0.0.3:5001   rto:1.6 cwnd:254 ssthresh:261
   """
   def get_data_point(self):
+    stamp = time()
+    txbytes = get_all_txbytes()
     for i, d in enumerate(self.hosts):
       host, iface, received = d[0], d[1], d[2]
-      stamp = time()
-      a = get_txbytes(iface, received)
+      a = txbytes[iface][0 if received else 1]
       p = host.popen('ss -i -n', shell=True, stdout=PIPE)
       data = [p.stdout.readline().rstrip()] + [p.stdout.readline().rstrip()]
       p.kill()
-      if len(data) < 2:
-        continue
       data = re.split('[ ]+', data[1])
       if len(data) < 7: # UDP
         print >> self.files[i], "%s, %s" % (stamp, a)
@@ -282,7 +287,6 @@ def run_tcp_first(net, n):
 
   try:
     m = MonitorLinkRate([(net.getNodeByName('hGS'), 's0-eth2', True),
-                         (net.getNodeByName('hBS'), 's0-eth3', True),
                          (net.getNodeByName('hGR'), 's1-eth2', False),
                          (net.getNodeByName('hBR'), 's1-eth3', False)
                          ])
@@ -367,9 +371,6 @@ def test_http(net):
       attack_times = x[2]
       output += map(lambda t: (obj, (t / base)), attack_times)
 
-    print "output: "
-    print output
-
     # Output
     with open("%s/http-data.txt" % (args.dir), "w") as f:
       writer = csv.writer(f)
@@ -407,6 +408,11 @@ def main():
     cprint("Experiment took %s seconds\n" % (end - start), "yellow")
 
 if __name__ == '__main__':
+  if args.debug:
+    lg.setLogLevel('info')
+  else:
+    lg.setLogLevel('warning')
+
   try:
     main()
   except:

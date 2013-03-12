@@ -21,11 +21,11 @@ rootdir=ddos-$exptid
 iperf=/usr/bin/iperf
 rm -f last
 ln -s $rootdir last
-      
+
 ./http/generator.py --dir ./http/Random_objects
 
 dir=$rootdir/http
-python buffersizing.py \
+python tcp_dos.py \
   --bw-host 15 \
   --bw-net 1.5 \
   --delay 6 \
@@ -36,7 +36,7 @@ python buffersizing.py \
   --minRTO 900 \
   --tcp-n 1 \
   --http
-./plot-http.py --dir $dir --out $dir/result.png
+./util/plot-http.py --dir $dir --out $dir/result.png
 
 for tcp_n in 1 10; do
   for minRTO in 900 300; do
@@ -45,7 +45,7 @@ for tcp_n in 1 10; do
       rm -f last
       ln -s $rootdir last
 
-      python buffersizing.py \
+      python tcp_dos.py \
         --bw-host 15 \
         --bw-net 1.5 \
         --delay 6 \
@@ -56,13 +56,19 @@ for tcp_n in 1 10; do
         --minRTO $minRTO \
         --tcp-n $tcp_n
 
-      ./plot-rto.py --dir $dir --out $dir/result.png
+      ./util/plot-rto.py --dir $dir --out $dir/result.png
     done
-    python plot.py --dir $rootdir/rto-$minRTO-tcp_n-$tcp_n/ --out $rootdir/rto-$minRTO-tcp_n-$tcp_n/result.png
+    ./util/plot.py --dir $rootdir/rto-$minRTO-tcp_n-$tcp_n/ --out $rootdir/rto-$minRTO-tcp_n-$tcp_n/result.png
   done
 done
 
-cp result.html last/
+cp bootstrap/result.html last/
 echo "Started at" $start
 echo "Ended at" `date`
-echo "Run:\npython -m SimpleHTTPServer\nand open host:8000/last/result.html"
+echo "Run: python -m SimpleHTTPServer &"
+
+domain=`curl -s -m 2 http://169.254.169.254/latest/meta-data/public-hostname`
+if [ -z $domain ]; then
+  domain="IP"
+fi
+echo "Result is located at http://$domain:8000/last/result.html"

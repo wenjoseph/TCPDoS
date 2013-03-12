@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from util.helper import *
+from helper import *
 import matplotlib
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
